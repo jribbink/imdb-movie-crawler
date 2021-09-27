@@ -14,8 +14,8 @@ class Video:
         self.criterion = kwargs["criterion"]
         self.search = kwargs["search"]
     
-    def get_knowledge_entity(self):
-        query = self.generate_query()
+    def get_knowledge_entity(self, q = None):
+        query = q if q else self.generate_query()
         types = self.identify_type()
         response = google_api.search_knowledge_graph(query = query, types = types)
 
@@ -24,12 +24,27 @@ class Video:
             element["similarScore"] = string_similarity(query, element["result"]["name"])
             elements.append(element)
 
+        if(len(elements) == 0):
+            if q is None:
+                new_query = self.correct_query(query)
+                print("Correcting spelling error \"{}\" -> \"{}\"".format(query, new_query))
+                return self.get_knowledge_entity(new_query)
+            else:
+                raise VideoNotFoundException()
+
         element = max(elements, key=lambda x: x["similarScore"])
         if(element["similarScore"] < 0.9):
             ##raise Exception("Similarity check failed")                    THIS COULD BE BAD!!
             element = elements[0]
             
         return element
+
+    def correct_query(self, query):
+        search_result = google_api.search_custom_search(q=query)
+        if "spelling" in search_result:
+            return search_result["spelling"]["correctedQuery"]
+        else:
+            raise VideoNotFoundException()
     
     def identify_type(self):
         # search for series season/ep identifier
@@ -43,12 +58,12 @@ class Video:
 
         # Move "THE" to front of title
         prefixes = [
-            "THE",
-            "A"
+            r"THE",
+            r"A"
         ]
         for prefix in prefixes:
-            regex = re.compile(", " + prefix)
-            if(re.search(regex, query)):
+            regex = r", " + prefix
+            if(re.search(regex + "(\s|$)", query)):
                 query = prefix + " " + re.sub(regex, "", query)
 
         removals = [
@@ -60,15 +75,18 @@ class Video:
 
         for removal in removals:
             query = re.sub(removal, "", query)
-        
 
         # Add year
         year = self.get_year()
         if year:
-            query = "{} {}".format(query, year)
+            query = "{} ({})".format(query, year)
 
         return query
 
     def get_year(self):
         year_search = re.search(patterns.year_info, self.title)
         return year_search.groups()[0] if year_search else None
+
+
+class VideoNotFoundException(Exception):
+    pass

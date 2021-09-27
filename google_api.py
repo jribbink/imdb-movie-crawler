@@ -1,7 +1,6 @@
 from config import config
-import urllib
-import urllib.request
 import json
+import requests
 
 def search_knowledge_graph(**params):
     api_key = config["API"]["knowledge_graph_key"]
@@ -10,13 +9,24 @@ def search_knowledge_graph(**params):
         "limit": 20,
         "languages": "en",
         "key": api_key,
-        "prefix": False
+        "prefix": False,
     }
     params = default_params | params
 
-    url = service_url + "?" + urllib.parse.urlencode(params)
-    response_data = urllib.request.urlopen(url).read()
-    return json.loads(response_data)
+    response_data = requests.get(service_url, params)
+    return response_data.json()
 
 def search_custom_search(**params):
-    api_key = config["API"]["custom_search_key"]
+    key = config["API"]["custom_search_key"]
+    search_context = config["API"]["custom_search_cx"]
+    service_url = "https://www.googleapis.com/customsearch/v1"
+
+    default_params = {
+        "key": key,
+        "cx": search_context,
+    }
+    params = default_params | params
+
+    response_data = requests.get(service_url, params)
+    return response_data.json()
+
