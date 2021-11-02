@@ -8,13 +8,31 @@ class QueryInfo:
         self.title = title
         self.type = type
         self.year = year
+        self.__query_index = 0
+
+    @property
+    def __queries(self):
+        ret = {
+            "default": [
+                "{title} {year} {type}" if self.year is not None else "{title} {type}",
+                "{title}",
+            ]
+        }
+
+        ret["Film"] = ret["default"]
+        ret["TV Series"] = ret["default"]
+
+        return ret.get(self.type, ret["default"])
 
     @property
     def query(self):
-        if self.year is not None:
-            return "{} {} {}".format(self.title, self.year, self.type)
-        else:
-            return "{} {}".format(self.title, self.type)
+        if (self.__query_index >= len(self.__queries)):
+            return None
+        return self.__queries[self.__query_index].format(title = self.title, year = self.year, type = self.type)
+    
+    def next_query(self):
+        self.__query_index += 1
+
 
 class Video:
     def __init__(self, *args, **kwargs):
