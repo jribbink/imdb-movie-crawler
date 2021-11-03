@@ -30,9 +30,11 @@ class AtomicInteger():
             return self._value
 
 class CrawlerThreadpool():
-    def __init__(self, videos: List[Video], num_threads = 4):
+    def __init__(self, videos: List[Video], num_threads = 4, crawler_options: dict = {}):
+        self.crawler_options = crawler_options
+
         self.threads = []
-        self.count = AtomicInteger(0)
+        self.count = AtomicInteger(1000)
         self.end_index = len(videos)
 
         self.videos = videos
@@ -43,7 +45,7 @@ class CrawlerThreadpool():
 
     def run(self):
         for i in range(0, self.num_threads):
-            thread = CrawlerThread(self)
+            thread = CrawlerThread(self, self.crawler_options)
             thread.start()
             self.threads.append(thread)
 
@@ -51,22 +53,40 @@ class CrawlerThreadpool():
             self.threads[i].join()
 
 class CrawlerThread(threading.Thread):
-     def __init__(self, parent: CrawlerThreadpool):
-        self.crawler = VideoCrawler()
+    def __init__(self, parent: CrawlerThreadpool, crawler_options: dict):
+        self.crawler = VideoCrawler(**crawler_options)
         self.parent = parent
         threading.Thread.__init__(self)
+
+    def get_existing_info(self, query_video):
+        info = None
+        for video in self.parent.videos:
+            ## Check if videos have same base query and video has info
+            if(video.query.title.strip() == query_video.query.title.strip()):
+                if(hasattr(video, "info")):
+                    info = video.info
+                break
+        
+        return info
     
-     def run(self):
+    def run(self):
         while(self.parent.count.value < self.parent.end_index):
             i = self.parent.count.inc() - 1
 
             if hasattr(self.parent.videos[i], "info"):
                 continue
-            
+
             try:
                 video = self.parent.videos[i]
-                info = self.crawler.get_video(video, index = i)
+
+                ## Check if video has already been queried
+                info = self.get_existing_info(video)
+                if(info is None): ## otherwise query through crawler
+                    info = self.crawler.get_video(video, index = i)
                 video.info = info
+
+                print(video.info)
+
                 self.parent.completed_videos.append(video)
                 print(video.query.title)
                 with open("serial", "wb") as f:

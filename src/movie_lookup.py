@@ -23,7 +23,7 @@ def load_videos() -> list[Video]:
 
 videos = load_videos()
 
-threadpool = CrawlerThreadpool(videos)
+threadpool = CrawlerThreadpool(videos, 6, {"headless": False, "show_images": False})
 threadpool.run()
 
 print("\n-------------------------")

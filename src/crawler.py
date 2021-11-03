@@ -68,7 +68,7 @@ class WebCrawler:
         return self.driver.execute_script(f.read(), *args)
 
     def wait_for_document(self):
-        WebDriverWait(self.driver, 10).until(lambda driver: driver.execute_script("return document.readyState") == "complete")
+        WebDriverWait(self.driver, 20).until(lambda driver: driver.execute_script("return document.readyState") == "complete")
 
     def save_image(self, element, dir):
         response = requests.get(element.get_attribute("src"), stream=True)
@@ -81,7 +81,7 @@ class WebCrawler:
         count = 0
         while count < attempts:
             try:
-                WebDriverWait(self.driver, 10).until(lambda driver: expected_conditions.element_to_be_clickable(element))
+                WebDriverWait(self.driver, 20).until(lambda driver: expected_conditions.element_to_be_clickable(element))
                 element.click()
                 return
             except WebDriverException as e:
@@ -161,7 +161,7 @@ class VideoCrawler(WebCrawler):
                         print("Warning: Used first film without year")
                         self.click_element(movie_links[0])
                         try:
-                            WebDriverWait(self.driver, 10).until(lambda driver: find_imdb_link() is not None)
+                            WebDriverWait(self.driver, 20).until(lambda driver: find_imdb_link() is not None)
                         except TimeoutException:
                             attempt_next_query()
                         return click_imdb_link()
@@ -177,7 +177,11 @@ class VideoCrawler(WebCrawler):
             click_imdb_link()
 
             ## Save imdb info
-            description = self.driver.find_element_by_class_name("GenresAndPlot__TextContainerBreakpointXL-cum89p-2").text
+            description = self.driver.find_element_by_class_name("GenresAndPlot__TextContainerBreakpointXL-cum89p-2").get_attribute("textContent")
+            rating = self.driver.find_element_by_class_name("AggregateRatingButton__RatingScore-sc-1ll29m0-1").get_attribute("textContent")
+            release_info = self.exec_script("js/getYears.js")
+            parental_rating = self.exec_script("js/getParentalRating.js")
+            genres = self.exec_script("js/getIMDbCredits.js", "Genres")
             directors = self.exec_script("js/getIMDbCredits.js", "Director")
             stars = self.exec_script("js/getIMDbCredits.js", "Stars")
 
@@ -210,8 +214,37 @@ class VideoCrawler(WebCrawler):
                 "description": description,
                 "directors": directors,
                 "stars": stars,
+                "genres": genres,
+                "rating": rating,
+                "parental_rating": parental_rating,
+                "release_info": release_info,
                 "image": "images/{:05}_{}.png".format(index, query.title),
                 "imdb_url": imdb_url
             }
         finally:
             self.rotate_proxy()
+
+
+'''
+first 1000 (or so) only have
+description
+directors
+stars
+image
+imdb_url
+
+next have these
+description
+directors
+stars
+image
+imdb_url
+rating
+genres
+releaseinfo
+parental_rating
+
+
+******* ALL WITH description = '' neeed to BE REFETCHED
+REPLACE ALL WITH SAME INFO!!!! (same query)
+'''
