@@ -37,7 +37,7 @@ class CrawlerThreadpool():
 
         self.threads = []
         self.count = AtomicInteger(start_index)
-        self.end_index = len(videos)
+        self.end_index = start_index + 200
 
         self.videos = videos
         self.completed_videos = []
