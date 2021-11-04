@@ -8,8 +8,8 @@ import os
 
 def load_videos() -> list[Video]:
     videos = None
-    if(os.path.isfile("serial")):
-        with open("serial", "rb") as f:
+    if(os.path.isfile("dump.file")):
+        with open("dump.file", "rb") as f:
             videos = pickle.load(f)
 
     if videos is not None:
@@ -23,7 +23,12 @@ def load_videos() -> list[Video]:
 
 videos = load_videos()
 
-threadpool = CrawlerThreadpool(videos, 6, {"headless": False, "show_images": False})
+threadpool = CrawlerThreadpool(
+    videos=videos,
+    num_threads=6,
+    start_index=800,
+    crawler_options={"headless": True, "show_images": False}
+)
 threadpool.run()
 
 print("\n-------------------------")

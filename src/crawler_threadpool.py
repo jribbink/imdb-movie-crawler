@@ -1,4 +1,6 @@
+import os
 import pickle
+from shutil import copyfile
 import threading
 from typing import List
 from crawler import VideoCrawler
@@ -30,11 +32,11 @@ class AtomicInteger():
             return self._value
 
 class CrawlerThreadpool():
-    def __init__(self, videos: List[Video], num_threads = 4, crawler_options: dict = {}):
+    def __init__(self, videos: List[Video], num_threads = 4, start_index = 0, crawler_options: dict = {}):
         self.crawler_options = crawler_options
 
         self.threads = []
-        self.count = AtomicInteger(1000)
+        self.count = AtomicInteger(start_index)
         self.end_index = len(videos)
 
         self.videos = videos
@@ -42,6 +44,7 @@ class CrawlerThreadpool():
         self.missing_videos = []
 
         self.num_threads = num_threads
+        self.file_save_lock = threading.Lock()
 
     def run(self):
         for i in range(0, self.num_threads):
@@ -65,7 +68,7 @@ class CrawlerThread(threading.Thread):
             if(video.query.title.strip() == query_video.query.title.strip()):
                 if(hasattr(video, "info")):
                     info = video.info
-                break
+                    break
         
         return info
     
@@ -89,10 +92,17 @@ class CrawlerThread(threading.Thread):
 
                 self.parent.completed_videos.append(video)
                 print(video.query.title)
-                with open("serial", "wb") as f:
-                    pickle.dump(self.parent.videos, f, protocol = pickle.HIGHEST_PROTOCOL)
+
+                with self.parent.file_save_lock:
+                    if(os.path.isfile("dump.file")):
+                        copyfile("dump.file", ".dump.file.bck")
+                    with open("dump.file", "wb") as f:
+                        pickle.dump(self.parent.videos, f, protocol = pickle.HIGHEST_PROTOCOL)
+                    if(os.path.isfile("dump.file")):
+                        os.remove(".dump.file.bck")
                 #print("{}\n    Name:\t\t{}\n    Description:\t{}".format(videos[i].title, entity["result"]["name"], entity["result"]["description"]))
                 #except VideoNotFoundException as ex:
             except Exception as ex:
+                print(ex)
                 print("Failed {} (index: {})".format(self.parent.videos[i].title, i))
                 self.parent.missing_videos.append(self.parent.videos[i])
