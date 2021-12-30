@@ -33,6 +33,20 @@ class QueryInfo:
     def next_query(self):
         self.__query_index += 1
 
+class VideoInfo:
+    def __init__(self, *args, **kwargs):
+        self.description = kwargs["description"] if "description" in kwargs else None
+        self.imdb_title = kwargs["imdb_title"] if "imdb_title" in kwargs else None
+        self.directors: list[str] = kwargs["directors"] if "directors" in kwargs else None
+        self.writers: list[str] = kwargs["writers"] if "writers" in kwargs else None
+        self.stars: list[str] = kwargs["stars"] if "stars" in kwargs else None
+        self.genres: list[str] = kwargs["genres"] if "genres" in kwargs else None
+        self.rating = kwargs["rating"] if "rating" in kwargs else None
+        self.film_length = kwargs["film_length"] if "film_length" in kwargs else None
+        self.parental_rating = kwargs["parental_rating"] if "parental_rating" in kwargs else None
+        self.release_info = kwargs["release_info"] if "release_info" in kwargs else None
+        self.image: str = kwargs["image"] if "image" in kwargs else None
+        self.imdb_url = kwargs["imdb_url"] if "imdb_url" in kwargs else None
 
 class Video:
     def __init__(self, *args, **kwargs):
@@ -44,6 +58,7 @@ class Video:
         self.category = kwargs["category"]
         self.criterion = kwargs["criterion"]
         self.search = kwargs["search"]
+        self.info: VideoInfo = kwargs["info"]
     
     def get_knowledge_entity(self, q = None):
         query = self.generate_query()

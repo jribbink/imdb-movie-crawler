@@ -37,6 +37,7 @@ class CrawlerThreadpool():
 
         self.threads = []
         self.count = AtomicInteger(start_index)
+        self.completed_count = AtomicInteger(0)  ##temp
         self.end_index = start_index + 200
 
         self.videos = videos
@@ -47,6 +48,7 @@ class CrawlerThreadpool():
         self.file_save_lock = threading.Lock()
 
     def run(self):
+        print("he")
         for i in range(0, self.num_threads):
             thread = CrawlerThread(self, self.crawler_options)
             thread.start()
@@ -73,8 +75,9 @@ class CrawlerThread(threading.Thread):
         return info
     
     def run(self):
-        while(self.parent.count.value < self.parent.end_index):
+        while(self.parent.completed_count.value < 200):
             i = self.parent.count.inc() - 1
+            print(i)
 
             if hasattr(self.parent.videos[i], "info"):
                 continue
@@ -86,6 +89,7 @@ class CrawlerThread(threading.Thread):
                 info = self.get_existing_info(video)
                 if(info is None): ## otherwise query through crawler
                     info = self.crawler.get_video(video, index = i)
+                    self.parent.completed_count.inc()
                 video.info = info
 
                 print(video.info)
@@ -103,6 +107,8 @@ class CrawlerThread(threading.Thread):
                 #print("{}\n    Name:\t\t{}\n    Description:\t{}".format(videos[i].title, entity["result"]["name"], entity["result"]["description"]))
                 #except VideoNotFoundException as ex:
             except Exception as ex:
+                if("Message: no such element: Unable to locate element: {\"method\":\"name\",\"selector\":\"q\"}" in str(ex)):
+                    print(self.crawler.proxy_manager.proxy)
                 print(ex)
                 print("Failed {} (index: {})".format(self.parent.videos[i].title, i))
                 self.parent.missing_videos.append(self.parent.videos[i])

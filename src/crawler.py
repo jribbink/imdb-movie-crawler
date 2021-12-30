@@ -10,7 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support import expected_conditions
 
-from video import Video, QueryInfo, VideoNotFoundException
+from video import Video, QueryInfo, VideoInfo, VideoNotFoundException
 
 class ProxyManager:
     class MeasuredProxy:
@@ -24,6 +24,7 @@ class ProxyManager:
             regex = r"(.+:\d+):(.+):(.+)"
             proxies = []
             for line in f:
+                if(line.startswith("//")): continue
                 result = re.search(regex, line).groups()
                 proxies.append("{user}:{password}@{addr}".format(user = result[1], password = result[2], addr = result[0]))
             return proxies
@@ -213,7 +214,7 @@ class VideoCrawler(WebCrawler):
 
             self.save_image(poster_image, "images/{:05}_{}.png".format(index, query.title))
 
-            return {
+            return VideoInfo({
                 "description": description,
                 "imdb_title": imdb_title,
                 "directors": directors,
@@ -226,7 +227,7 @@ class VideoCrawler(WebCrawler):
                 "release_info": release_info,
                 "image": "images/{:05}_{}.png".format(index, query.title),
                 "imdb_url": imdb_url
-            }
+            })
         finally:
             self.rotate_proxy()
 
@@ -245,10 +246,10 @@ directors
 stars
 image
 imdb_url
-rating
+rating      (rating /10 by community)
 genres
-releaseinfo
-parental_rating
+release_info (when it was released/when the series aired)
+parental_rating (G/R/PG/etc)
 imdb_title
 film_length
 
