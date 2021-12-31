@@ -1,7 +1,6 @@
-from util import string_similarity
-import google_api
+import util.google_api as google_api
 import re
-import regex as patterns
+import util.regex as patterns
 
 class QueryInfo:
     def __init__(self, title, type, year = None):
@@ -58,7 +57,8 @@ class Video:
         self.category = kwargs["category"]
         self.criterion = kwargs["criterion"]
         self.search = kwargs["search"]
-        self.info: VideoInfo = kwargs["info"]
+        if("info" in kwargs):
+            self.info: VideoInfo = VideoInfo(**kwargs["info"])
     
     def get_knowledge_entity(self, q = None):
         query = self.generate_query()

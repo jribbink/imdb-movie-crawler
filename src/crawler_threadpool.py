@@ -4,6 +4,7 @@ from shutil import copyfile
 import threading
 from typing import List
 from crawler import VideoCrawler
+from util.util import dump_videos
 
 from video import Video
 
@@ -32,13 +33,13 @@ class AtomicInteger():
             return self._value
 
 class CrawlerThreadpool():
-    def __init__(self, videos: List[Video], num_threads = 4, start_index = 0, crawler_options: dict = {}):
+    def __init__(self, videos: List[Video], num_threads = 4, start_index = 0, end_index = 0, crawler_options: dict = {}, output_file = "dump.file"):
         self.crawler_options = crawler_options
 
         self.threads = []
         self.count = AtomicInteger(start_index)
         self.completed_count = AtomicInteger(0)  ##temp
-        self.end_index = start_index + 200
+        self.end_index = end_index
 
         self.videos = videos
         self.completed_videos = []
@@ -47,8 +48,9 @@ class CrawlerThreadpool():
         self.num_threads = num_threads
         self.file_save_lock = threading.Lock()
 
+        self.output_file = output_file
+
     def run(self):
-        print("he")
         for i in range(0, self.num_threads):
             thread = CrawlerThread(self, self.crawler_options)
             thread.start()
@@ -98,12 +100,7 @@ class CrawlerThread(threading.Thread):
                 print(video.query.title)
 
                 with self.parent.file_save_lock:
-                    if(os.path.isfile("dump.file")):
-                        copyfile("dump.file", ".dump.file.bck")
-                    with open("dump.file", "wb") as f:
-                        pickle.dump(self.parent.videos, f, protocol = pickle.HIGHEST_PROTOCOL)
-                    if(os.path.isfile("dump.file")):
-                        os.remove(".dump.file.bck")
+                    dump_videos(self.parent.videos, self.parent.output_file)
                 #print("{}\n    Name:\t\t{}\n    Description:\t{}".format(videos[i].title, entity["result"]["name"], entity["result"]["description"]))
                 #except VideoNotFoundException as ex:
             except Exception as ex:
