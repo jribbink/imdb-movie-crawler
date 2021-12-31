@@ -5,6 +5,7 @@ from scripts.file_server import file_server
 from scripts.movie_lookup import movie_lookup
 from scripts.script import Script
 from scripts.upgrade_videos import upgrade_videos
+from tests.tests import run_test
 
 from util.util import cls, request_input
 from time import sleep
@@ -14,7 +15,8 @@ options: 'list[Script]' = [
     Script("Crawl for videos", movie_lookup),
     Script("Export videos to CSV", csv_dump),
     Script("Upgrade videos (convert legacy dictionary info to object)", upgrade_videos),
-    Script("Run static http server", file_server)
+    Script("Run static http server", file_server),
+    Script("Run test", run_test)
 ]
 
 def run_script():

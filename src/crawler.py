@@ -212,7 +212,8 @@ class VideoCrawler(WebCrawler):
                 feature_image = self.driver.find_element_by_css_selector("[jsname=\"CGzTgf\"] [jsname=\"HiaYvf\"]")
                 poster_image = feature_image
 
-            self.save_image(poster_image, "images/{:05}_{}.png".format(index, query.title))
+            img_loc = "images/{:05}_{}.png".format(index, query.title.replace("\\", "").replace("/", ""))
+            self.save_image(poster_image, img_loc)
 
             return VideoInfo({
                 "description": description,
@@ -225,7 +226,7 @@ class VideoCrawler(WebCrawler):
                 "film_length": film_length,
                 "parental_rating": parental_rating,
                 "release_info": release_info,
-                "image": "images/{:05}_{}.png".format(index, query.title),
+                "image": img_loc,
                 "imdb_url": imdb_url
             })
         finally:
