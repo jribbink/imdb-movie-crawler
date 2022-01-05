@@ -33,26 +33,30 @@ class AtomicInteger():
             return self._value
 
 class CrawlerThreadpool():
-    def __init__(self, videos: List[Video], num_threads = 4, start_index = 0, end_index = 0, crawler_options: dict = {}, output_file = "dump.file"):
+    def __init__(self, videos: List[Video], num_threads = 4, indices = None, crawler_options: dict = {}, output_file = "dump.file"):
+        ## Chrome driver options
         self.crawler_options = crawler_options
 
-        self.threads = []
-        self.count = AtomicInteger(start_index)
-        self.completed_count = AtomicInteger(0)  ##temp
-        self.end_index = end_index
+        ## Indices of videos to explore
+        self.queue = list(indices)
 
+        ## Video lists
         self.videos = videos
         self.completed_videos = []
         self.missing_videos = []
 
+        ## Threading parameters
+        self.threads = []
         self.num_threads = num_threads
         self.file_save_lock = threading.Lock()
+        self.queue_length_lock = threading.Lock()
 
+        ## Output option
         self.output_file = output_file
 
     def run(self):
         for i in range(0, self.num_threads):
-            thread = CrawlerThread(self, self.crawler_options)
+            thread = CrawlerThread(self, self.crawler_options, i)
             thread.start()
             self.threads.append(thread)
 
@@ -60,8 +64,8 @@ class CrawlerThreadpool():
             self.threads[i].join()
 
 class CrawlerThread(threading.Thread):
-    def __init__(self, parent: CrawlerThreadpool, crawler_options: dict):
-        self.crawler = VideoCrawler(**crawler_options)
+    def __init__(self, parent: CrawlerThreadpool, crawler_options: dict, index: int):
+        self.crawler = VideoCrawler(**crawler_options, index=index)
         self.parent = parent
         threading.Thread.__init__(self)
 
@@ -76,10 +80,13 @@ class CrawlerThread(threading.Thread):
         
         return info
     
-    def run(self):
-        while(self.parent.completed_count.value < 200):
-            i = self.parent.count.inc() - 1
-            print(i)
+    def run(self):  
+        while True:
+            i = None
+            with self.parent.queue_length_lock:
+                if len(self.parent.queue) > 0:
+                    i = self.parent.queue.pop(0)
+            if i is None: break
 
             if hasattr(self.parent.videos[i], "info"):
                 continue
@@ -91,10 +98,9 @@ class CrawlerThread(threading.Thread):
                 info = self.get_existing_info(video)
                 if(info is None): ## otherwise query through crawler
                     info = self.crawler.get_video(video, index = i)
-                    self.parent.completed_count.inc()
                 video.info = info
 
-                print(video.info)
+                print(video.info.__dict__)
 
                 self.parent.completed_videos.append(video)
                 print(video.query.title)
@@ -109,3 +115,5 @@ class CrawlerThread(threading.Thread):
                 print(ex)
                 print("Failed {} (index: {})".format(self.parent.videos[i].title, i))
                 self.parent.missing_videos.append(self.parent.videos[i])
+
+        self.crawler.driver.close()

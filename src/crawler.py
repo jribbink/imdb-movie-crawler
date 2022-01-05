@@ -2,6 +2,7 @@ import re
 import requests
 import shutil
 import os
+import threading
 from time import sleep
 from seleniumwire import webdriver
 from selenium.webdriver.common.proxy import Proxy, ProxyType
@@ -39,7 +40,7 @@ class ProxyManager:
         return p.addr
 
 class WebCrawler:
-    def __init__(self, proxy, headless = True, show_images = False):
+    def __init__(self, proxy, headless = True, show_images = False, index = 0):
         seleniumwire_options = {
             "proxy": {
                 "http": "http://{}".format(proxy),
@@ -47,9 +48,18 @@ class WebCrawler:
             }
         }
 
-        chrome_options = Options()
-        chrome_options.add_argument("--window-size=1920x1080")
+        os.environ["DBUS_SESSION_BUS_ADDRESS"] = '/dev/null'
 
+        chrome_options = Options()
+        chrome_profile = os.path.join(os.path.abspath(os.getcwd()), "chrome-dirs/p{}".format(index))
+
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+
+        chrome_options.add_argument("user-data-dir=" + chrome_profile)
+        chrome_options.add_argument("profile-directory=Profile 1")
+        chrome_options.add_argument("--window-size=1920x1080")
         if(headless): chrome_options.add_argument("--headless")
 
         if not show_images:
@@ -58,7 +68,7 @@ class WebCrawler:
             chrome_prefs["profile.default_content_settings"] = {"images": 2}
             chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
 
-        self.driver = webdriver.Chrome(options=chrome_options, seleniumwire_options=seleniumwire_options)
+        self.driver = webdriver.Chrome(options=chrome_options, seleniumwire_options=seleniumwire_options, service_args=["--verbose", "--log-path=/home/jordan/log.log"])
         self.wait_for_document()
 
     def __del__(self):
@@ -96,16 +106,17 @@ class WebCrawler:
                 
 
 class VideoCrawler(WebCrawler):
-    def __init__(self, headless = True, show_images=False):
+    def __init__(self, headless = True, show_images=False, index=0):
         self.__headless = headless
         self.__show_images = show_images
         self.proxy_manager = ProxyManager()
+        self.index = index
         self.rotate_proxy()
 
     def rotate_proxy(self):
         if(hasattr(self, "driver")):
             super().__del__()
-        super().__init__(self.proxy_manager.proxy, self.__headless, self.__show_images)
+        super().__init__(self.proxy_manager.proxy, self.__headless, self.__show_images, self.index)
 
     @property
     def knowledge_panel(self):
@@ -123,7 +134,7 @@ class VideoCrawler(WebCrawler):
                 self.wait_for_document()
 
                 ## Accept cookies
-                agree_element = self.driver.find_elements_by_xpath("//div[contains(string(), \"I agree\") and contains(@class, \"jyfHyd\")]")
+                agree_element = self.driver.find_elements_by_xpath("//div[contains(string(), \"I agree\") and contains(@class, \"QS5gu\")]")
                 if(self.exec_script("js/findText.js", "Before you continue to Google Search") is not None and len(agree_element) != 0):
                     self.click_element(agree_element[0])
 
@@ -134,6 +145,22 @@ class VideoCrawler(WebCrawler):
                 self.wait_for_document()
                 nonlocal search_location
                 search_location = self.driver.current_url
+
+                if(search_location.startswith("https://www.google.com/sorry")):
+                    WebDriverWait(self.driver, 10).until(lambda driver: len(self.driver.find_elements_by_class_name("captcha-solver")) > 0)
+
+                    # Try captcha 5 times
+                    for i in range(0,5):
+                        self.driver.find_element_by_class_name("captcha-solver").click()
+                        WebDriverWait(self.driver, 200).until(lambda driver: driver.current_url != search_location or self.exec_script("js/checkCaptchaError.js"))
+                        if not self.exec_script("js/checkCaptchaError.js"):
+                            break
+                        else:
+                            print("Captcha failed, retrying")
+                            if i == 4:
+                                raise Exception("Captcha failed 5 times, abort")
+
+                    self.wait_for_document()
             search_video()
 
             ## Click on imdb link on knowledge panel
@@ -215,7 +242,7 @@ class VideoCrawler(WebCrawler):
             img_loc = "images/{:05}_{}.png".format(index, query.title.replace("\\", "").replace("/", ""))
             self.save_image(poster_image, img_loc)
 
-            return VideoInfo({
+            return VideoInfo(**{
                 "description": description,
                 "imdb_title": imdb_title,
                 "directors": directors,

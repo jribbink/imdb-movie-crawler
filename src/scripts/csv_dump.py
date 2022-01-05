@@ -3,7 +3,8 @@ import re
 import sys
 from time import sleep
 from util.pandas_helper import videos_to_data_frame
-from util.util import cls, load_videos, request_input, request_range
+from util.util import cls, load_videos
+from util.io import request_input, request_range
 from config import config
 
 
@@ -21,4 +22,3 @@ def csv_dump():
     df = videos_to_data_frame(videos)
     df.iloc[indices.start:indices.stop].to_csv(output_file)
     print("Success! Videos outputted to {}".format(output_file))
-    sleep(2)

@@ -62,33 +62,6 @@ def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
 '''
-Request input from user and validate it
-'''
-def request_input(message = "", pattern = ".*", default = None):
-    print(message, end='')
-    input = sys.stdin.readline().strip()
-
-    if default is not None and input is "":
-        return default
-
-    if not re.match(pattern, input):
-        print("Bad Input")
-        request_input(message=message, pattern=pattern)
-    else:
-        return input
-
-'''
-Request range of numbers or single number from user
-'''
-def request_range(message = "", default = None):
-    input = request_input(message=message, pattern=r"\d+(-\d+)?$", default=default)
-    if(type(input) is range): return input
-
-    split_input = input.split("-")
-    if(len(split_input) > 1): return range(int(split_input[0]), int(split_input[1]))
-    else: return range(int(split_input[0]), int(split_input[0]))
-
-'''
 Convert legacy video infos where video.info is dictionary to new object version
 '''
 def video_info_dictionary_to_object(videos: 'list[Video]'):

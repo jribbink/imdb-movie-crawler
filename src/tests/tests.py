@@ -1,6 +1,7 @@
 import re
 import os
-from util.util import load_videos, request_input
+from util.util import dump_videos, load_videos
+from util.io import request_input
 
 def run_test():
     test = request_input("Which test would you like to run? ")

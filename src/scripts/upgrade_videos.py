@@ -6,7 +6,8 @@ from genericpath import isdir
 import os
 from re import L
 from time import sleep
-from util.util import cls, dump_videos, load_videos, request_input, request_range, video_info_dictionary_to_object
+from util.util import cls, dump_videos, load_videos, video_info_dictionary_to_object
+from util.io import request_input, request_range
 
 from os import listdir
 from os.path import isfile, join
@@ -68,5 +69,3 @@ def upgrade_videos():
         
 
     dump_videos(videos, request_input("Please enter the name of the dump file (default dump.file): ", default="dump.file"))
-    
-    sleep(2)
