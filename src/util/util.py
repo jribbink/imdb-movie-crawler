@@ -34,6 +34,11 @@ Save videos to data file
 def dump_videos(videos: 'list[Video]', filename = "dump.file"):
     location = os.path.join(config["OUTPUT"]["output_location"], filename)
     backup = os.path.dirname(location) + "." + os.path.basename(location) + ".bck"
+    bck_idx = 1
+
+    while(os.path.isfile(backup)):
+        backup = os.path.dirname(location) + "." + os.path.basename(location) + ".bck{}".format(bck_idx)
+        bck_idx += 1
 
     ## Backup file
     if(os.path.isfile(location)):
