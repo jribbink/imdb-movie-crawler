@@ -3,12 +3,14 @@ from posixpath import join
 import os
 from util.util import dump_videos, load_videos
 from util.io import readline, request_input
-from video import VideoInfo
+from video import Video, VideoInfo
 from time import sleep
+import itertools
 
 def run_misc_script():
-    script = request_input("What script would you like to run?")
+    script = request_input("What script would you like to run? ")
     exec(script + "()")
+    readline()
 
 def kill_movie():
     videos = load_videos()
@@ -31,9 +33,8 @@ def print_poldark():
 
     count = 0
     for idx, video in enumerate(videos):
-        if hasattr(video, "info") and video.info.image == "images/14775_GROSSE POINT BLANK.png":
-            count += 1
-            print(idx, " ", video.info.__dict__)
+        if hasattr(video, "info") and video.info.imdb_url == videos[0].info.imdb_url:
+            print(video.__dict__)
 
     print(count)
     readline()
@@ -73,7 +74,7 @@ def get_readall():
 
 def find_useless_images():
     videos = load_videos()
-    files = [join("images", file) for file in os.listdir("images") if isfile(join("images", file))]
+    files = [join("images", file) for file in os.listdir("images") if isfile(join("images", file)) and not file.endswith(".txt")]
 
     useless = []
     for idx, image in enumerate(files):
@@ -87,3 +88,55 @@ def find_useless_images():
     if(answer):
         os.makedirs("garbage/images", exist_ok=True)
         for image in useless: os.rename(image, "garbage/" + image)
+
+def merge_matching_imdb_info():
+    videos = load_videos()
+    queue = list(enumerate(videos))
+    changed = []
+    while len(queue) > 0:
+        idx: int
+        video: Video
+        idx, video = queue.pop(0)
+
+        if(idx % 100 == 0): print(idx)
+
+        if video.has_info() and video.info.imdb_url is not None:
+            matches = [matching_video for matching_video in queue if matching_video[1].has_info() and matching_video[1].info.imdb_url == video.info.imdb_url]
+            for idy, match in matches:
+                videos[idy].info = video.info
+                changed.append(idy)
+                queue = [q for q in queue if q[0] != idy]
+            queue = [q for q in queue if q[0] != idx]
+    
+    dump_videos(videos)
+
+def add_sku_attr():
+    videos = load_videos()
+    for video in videos:
+        if video.has_info() and not hasattr(video.info, "sku"):
+            video.info.sku = None
+
+    dump_videos(videos)
+
+def assign_skus():
+    videos = load_videos()
+    skus = [(video.info.sku, video.query.title) for video in videos if video.has_info()]
+    sku_iter = iter(
+        "{:08d}".format(sku) for sku in itertools.count(start=0) if not "{:08d}".format(sku) in 
+        [sku[0] for sku in skus]
+    )
+    count = 0
+    for video in videos:
+        if video.has_info() and video.info.is_populated() and video.info.sku is None:
+            existing_sku = next((sku[0] for sku in skus if sku[1] == video.query.title), None)
+            if existing_sku:
+                video.info.sku = existing_sku
+            else:
+                video.info.sku = sku_iter.__next__()
+                print(video.info.sku)
+
+def print_video_len():
+    videos = load_videos()
+    print(len(videos))
+    print(len([video for video in videos if video.has_info()]))
+    print(len([video for video in videos if video.has_info() and video.info.is_populated() and video.info.sku is None]))

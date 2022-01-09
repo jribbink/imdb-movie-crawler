@@ -46,6 +46,17 @@ class VideoInfo:
         self.release_info = kwargs["release_info"] if "release_info" in kwargs else None
         self.image: str = kwargs["image"] if "image" in kwargs else None
         self.imdb_url = kwargs["imdb_url"] if "imdb_url" in kwargs else None
+        self.sku = kwargs["sku"] if "sku" in kwargs else None
+
+    '''
+    Check if video info is all null or is populated
+    '''
+    def is_populated(self):
+        info_dict = self.__dict__
+        for prop in info_dict:
+            if(info_dict[prop] is not None) and prop != "imdb_url":
+                return True
+        return False
 
 class Video:
     def __init__(self, *args, **kwargs):
@@ -59,6 +70,9 @@ class Video:
         self.search = kwargs["search"]
         if("info" in kwargs):
             self.info: VideoInfo = VideoInfo(**kwargs["info"])
+
+    def has_info(self):
+        return hasattr(self, "info")
     
     def get_knowledge_entity(self, q = None):
         query = self.generate_query()

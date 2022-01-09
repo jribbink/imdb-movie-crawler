@@ -5,15 +5,8 @@ from video import Video, VideoInfo
 def videos_to_data_frame(videos: 'list[Video]'):
     tuple_videos = []
 
-    def info_not_none(info: VideoInfo):
-        info_dict = info.__dict__
-        for prop in info_dict:
-            if(info_dict[prop] is not None) and prop != "imdb_url":
-                return True
-        return False
-
     for video in videos:
-        if hasattr(video, "info") and info_not_none(video.info):
+        if hasattr(video, "info") and video.info.is_populated():
             tuple_videos.append(
                 (
                     video.info.description.replace("... Read all", "... <a href=\"{}\">Read all</a>".format(video.info.imdb_url)),
