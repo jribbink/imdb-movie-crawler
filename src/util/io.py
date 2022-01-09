@@ -17,7 +17,7 @@ def readline():
     global commands
     if len(commands) > 0:
         command = commands.pop(0).strip()
-        print(command)
+        print(command, flush=True)
         return command
 
     return sys.stdin.readline().strip()
@@ -26,15 +26,15 @@ def readline():
 Request input from user and validate it
 '''
 def request_input(message = "", pattern = ".*", default = None):
-    print(message, end='')
+    print(message, end='', flush=True)
     input = readline()
 
-    if default is not None and input is "":
+    if default is not None and input == "":
         return default
 
     if not re.match(pattern, input):
-        print("Bad Input")
-        request_input(message=message, pattern=pattern)
+        print("Bad Input", flush=True)
+        return request_input(message=message, pattern=pattern)
     else:
         return input
 

@@ -1,14 +1,22 @@
 import pandas as pd
 from pandas.core.frame import DataFrame
-from video import Video
+from video import Video, VideoInfo
 
 def videos_to_data_frame(videos: 'list[Video]'):
     tuple_videos = []
+
+    def info_not_none(info: VideoInfo):
+        info_dict = info.__dict__
+        for prop in info_dict:
+            if(info_dict[prop] is not None) and prop != "imdb_url":
+                return True
+        return False
+
     for video in videos:
-        if(hasattr(video, "info")):
+        if hasattr(video, "info") and info_not_none(video.info):
             tuple_videos.append(
                 (
-                    video.info.description,
+                    video.info.description.replace("... Read all", "... <a href=\"{}\">Read all</a>".format(video.info.imdb_url)),
                     video.info.imdb_title,
                     "|".join(video.info.directors) if video.info.directors is not None else None,
                     "|".join(video.info.writers) if video.info.writers is not None else None,
@@ -18,7 +26,7 @@ def videos_to_data_frame(videos: 'list[Video]'):
                     video.info.film_length,
                     video.info.parental_rating,
                     video.info.release_info,
-                    "https://leosvideos.ca/video_images/" + video.info.image[7:],
+                    ("http://173.183.83.5/" + video.info.image[7:]) if video.info.image is not None else None,
                     video.info.imdb_url,
                     video.category,
                     video.code,
@@ -28,22 +36,22 @@ def videos_to_data_frame(videos: 'list[Video]'):
             )
 
     columns = (
-        "description",
-        "imdb_title",
-        "attribute:directors",
-        "meta:writers",
-        "meta:stars",
-        "meta:genres",
-        "meta:rating",
-        "meta:film_length",
-        "meta:parental_rating",
-        "meta:release_info",
+        "post_content",
+        "post_title",
+        "attribute:pa_directors",
+        "attribute:pa_writers",
+        "attribute:pa_stars",
+        "attribute:pa_genres",
+        "attribute:pa_rating",
+        "attribute:pa_film-length",
+        "attribute:pa_parental-rating",
+        "attribute:pa_release-info",
         "images",
-        "imdb_url",
-        "meta:leo_category",
-        "meta:leo_code",
-        "meta:leo_title",
-        "meta:leo_rented",
+        "attribute:pa_imdb-url",
+        "attribute:pa_leo-category",
+        "attribute:pa_leo-code",
+        "attribute:pa_leo-title",
+        "attribute:pa_leo-rented",
     )
     df = pd.DataFrame(tuple_videos, columns=columns)
     return df

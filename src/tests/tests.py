@@ -1,6 +1,6 @@
 import re
 import os
-from util.util import dump_videos, load_videos
+from util.util import load_videos
 from util.io import request_input
 
 def run_test():

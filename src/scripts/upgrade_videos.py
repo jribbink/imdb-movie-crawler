@@ -59,7 +59,7 @@ def upgrade_videos():
 
     images = [f for f in listdir(mypath) if isfile(join(mypath, f))]
     for video in videos:
-        img_loc = os.path.join(mypath, image)
+        img_loc = os.path.join(mypath, image)  ### BAD! SETS TO LAST IMAGE
         if(hasattr(video, "info")):
             id = video.info.image[7:12]
             for image in images:

@@ -2,8 +2,10 @@ import os
 import sys
 from scripts.csv_dump import csv_dump
 from scripts.file_server import file_server
+from scripts.manual_map import manual_map
 from scripts.movie_lookup import movie_lookup
 from scripts.script import Script
+from scripts.misc_scripts import run_misc_script
 from scripts.upgrade_videos import upgrade_videos
 from tests.tests import run_test
 
@@ -16,7 +18,9 @@ options: 'list[Script]' = [
     Script("Crawl for videos", movie_lookup),
     Script("Export videos to CSV", csv_dump),
     Script("Upgrade videos (convert legacy dictionary info to object)", upgrade_videos),
+    Script("Manually map IMDb URLs", manual_map),
     Script("Run static http server", file_server),
+    Script("Run misc script", run_misc_script),
     Script("Run test", run_test)
 ]
 
