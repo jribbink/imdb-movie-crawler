@@ -2,6 +2,7 @@ from config import config
 import json
 import requests
 
+
 def search_knowledge_graph(**params):
     api_key = config["API"]["knowledge_graph_key"]
     service_url = "https://kgsearch.googleapis.com/v1/entities:search"
@@ -15,6 +16,7 @@ def search_knowledge_graph(**params):
 
     response_data = requests.get(service_url, params)
     return response_data.json()
+
 
 def search_custom_search(**params):
     key = config["API"]["custom_search_key"]
@@ -30,12 +32,11 @@ def search_custom_search(**params):
     response_data = requests.get(service_url, params)
     return response_data.json()
 
+
 def serp_search(**params):
     api_key = config["API"]["valueserp_key"]
-    default_params = {
-        "api_key": api_key
-    }
+    default_params = {"api_key": api_key}
     params = default_params | params
 
-    api_result = requests.get('https://api.valueserp.com/search', params)
+    api_result = requests.get("https://api.valueserp.com/search", params)
     return api_result.json()

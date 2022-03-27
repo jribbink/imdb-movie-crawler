@@ -1,24 +1,23 @@
+from person_crawler import PersonCrawlerThreadpool
 import sys
 import os
 
-from util.util import load_videos
+from util.util import load_people
 from util.io import request_input, request_int, request_range
 
 from time import sleep
 
-from video_crawler import VideoCrawlerThreadpool
 
-
-def movie_lookup():
+def person_lookup():
     output_file = request_input(
-        "Please enter the name of the input file (default dump.file): ",
-        default="dump.file",
+        "Please enter the name of the input file (default dumppeople.file): ",
+        default="dumppeople.file",
     )
-    videos = load_videos(output_file)
-    print("{} videos loaded (0-{})\n".format(len(videos), len(videos) - 1))
+    videos = load_people(output_file)
+    print("{} people loaded (0-{})\n".format(len(videos), len(videos) - 1))
 
     idx_range = request_range(
-        "Which videos would you like to fetch (i.e. 0-2) (leave blank for all videos)? ",
+        "Which videos would you like to fetch (i.e. 0-2) (leave blank for all people)? ",
         range(0, len(videos)),
     )
     remaining_range = None
@@ -29,8 +28,8 @@ def movie_lookup():
 
     num_threads = int(request_int("How many threads (default 4)? ", default=4))
 
-    threadpool = VideoCrawlerThreadpool(
-        videos=videos,
+    threadpool = PersonCrawlerThreadpool(
+        people=videos,
         num_threads=num_threads,
         indices=idx_range,
         crawler_options={"headless": False, "show_images": True},
@@ -39,8 +38,7 @@ def movie_lookup():
     threadpool.run()
 
     print("\n-------------------------")
-    print("{} completed videos".format(len(threadpool.completed_videos)))
-    print("{} missing videos".format(len(threadpool.missing_videos)))
+    print("{} completed people".format(len(threadpool.completed_people)))
     print("-------------------------")
 
     os.execv(
@@ -48,14 +46,12 @@ def movie_lookup():
         [
             sys.executable,
             sys.argv[0],
-            "1",
+            "2",
             output_file,
             "{}-{}".format(remaining_range.start, remaining_range.stop),
             str(num_threads),
         ],
     )
-
-    exit()
 
 
 """
