@@ -1,4 +1,5 @@
 import threading
+from time import sleep
 from typing import List
 from crawler import ProxyManager, WebCrawler
 from person import Person
@@ -65,22 +66,30 @@ class PersonCrawlerThread(threading.Thread):
             if i is None:
                 break
 
-            try:
-                person = self.parent.people[i]
-                p = self.crawler.get_person(person, i)
-
-                self.parent.completed_people.append(person)
-
-            except Exception as ex:
-                if (
-                    'Message: no such element: Unable to locate element: {"method":"name","selector":"q"}'
-                    in str(ex)
-                ):
-                    print(self.crawler.proxy_manager.proxy)
-                print(ex)
-                print("Failed {} (index: {})".format(self.parent.people[i].name, i))
+            self.process_person(i)
 
         self.crawler.driver.close()
+
+    def process_person(self, i, attempt):
+        try:
+            person = self.parent.people[i]
+            p = self.crawler.get_person(person, i)
+
+            self.parent.completed_people.append(person)
+
+        except Exception as ex:
+            if "net::ERR_TUNNEL_CONNECTION_FAILED" in str(ex):
+                sleep(0.25)
+                return self.process_person(i)
+            if (
+                'Message: no such element: Unable to locate element: {"method":"name","selector":"q"}'
+                in str(ex)
+            ):
+                print(self.crawler.proxy_manager.proxy)
+                if attempt < 5:
+                    return self.process_person(i, attempt + 1)
+            print(ex)
+            print("Failed {} (index: {})".format(self.parent.people[i].name, i))
 
 
 class PersonCrawler(WebCrawler):

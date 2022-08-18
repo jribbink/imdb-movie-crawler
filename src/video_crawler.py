@@ -1,5 +1,6 @@
 import re
 import threading
+from time import sleep
 from typing import List
 from crawler import ProxyManager, WebCrawler
 from util.util import dump_videos
@@ -79,49 +80,58 @@ class VideoCrawlerThread(threading.Thread):
             if i is None:
                 break
 
-            if hasattr(self.parent.videos[i], "info"):
-                if not self.parent.videos[i].info.imdb_url:
-                    continue
-                if not re.match(
-                    r"^(https:\/\/www\.imdb\.com\/title\/[^\/]+\/)$",
-                    self.parent.videos[i].info.imdb_url or "",
-                ):
-                    self.parent.videos[i].info.imdb_url = re.match(
-                        r"(https:\/\/www\.imdb\.com\/title\/[^\/]+\/)",
-                        self.parent.videos[i].info.imdb_url,
-                    ).group(0)
-                else:
-                    continue
-
-            try:
-                video = self.parent.videos[i]
-
-                ## Check if video has already been queried
-                info = self.get_existing_info(video)
-                if info is None:  ## otherwise query through crawler
-                    info = self.crawler.get_video(video, index=i)
-                video.info = info
-
-                print(video.info.__dict__)
-
-                self.parent.completed_videos.append(video)
-                print(video.query.title)
-
-                with self.parent.file_save_lock:
-                    dump_videos(self.parent.videos, self.parent.output_file)
-                # print("{}\n    Name:\t\t{}\n    Description:\t{}".format(videos[i].title, entity["result"]["name"], entity["result"]["description"]))
-                # except VideoNotFoundException as ex:
-            except Exception as ex:
-                if (
-                    'Message: no such element: Unable to locate element: {"method":"name","selector":"q"}'
-                    in str(ex)
-                ):
-                    print(self.crawler.proxy_manager.proxy)
-                print(ex)
-                print("Failed {} (index: {})".format(self.parent.videos[i].title, i))
-                self.parent.missing_videos.append(self.parent.videos[i])
+            self.process_video(i)
 
         self.crawler.driver.close()
+
+    def process_video(self, i, attempt=0):
+        if hasattr(self.parent.videos[i], "info"):
+            if not self.parent.videos[i].info.imdb_url:
+                return
+            if not re.match(
+                r"^(https:\/\/www\.imdb\.com\/title\/[^\/]+\/)$",
+                self.parent.videos[i].info.imdb_url or "",
+            ):
+                self.parent.videos[i].info.imdb_url = re.match(
+                    r"(https:\/\/www\.imdb\.com\/title\/[^\/]+\/)",
+                    self.parent.videos[i].info.imdb_url,
+                ).group(0)
+            else:
+                return
+
+        try:
+            video = self.parent.videos[i]
+
+            ## Check if video has already been queried
+            info = self.get_existing_info(video)
+            if info is None:  ## otherwise query through crawler
+                info = self.crawler.get_video(video, index=i)
+            video.info = info
+
+            print(video.info.__dict__)
+
+            self.parent.completed_videos.append(video)
+            print(video.query.title)
+
+            with self.parent.file_save_lock:
+                dump_videos(self.parent.videos, self.parent.output_file)
+            # print("{}\n    Name:\t\t{}\n    Description:\t{}".format(videos[i].title, entity["result"]["name"], entity["result"]["description"]))
+            # except VideoNotFoundException as ex:
+        except Exception as ex:
+            if "net::ERR_TUNNEL_CONNECTION_FAILED" in str(ex):
+                sleep(0.25)
+                return self.process_video(i)
+
+            if (
+                'Unable to locate element: {"method":"css selector","selector":"[name="q"]"}'
+                in str(ex)
+            ):
+                print(self.crawler.proxy_manager.proxy)
+                if attempt < 6:
+                    return self.process_video(i, attempt + 1)
+            print(ex)
+            print("Failed {} (index: {})".format(self.parent.videos[i].title, i))
+            self.parent.missing_videos.append(self.parent.videos[i])
 
 
 class VideoCrawler(WebCrawler):
@@ -143,7 +153,7 @@ class VideoCrawler(WebCrawler):
     def knowledge_panel(self):
         return self.driver.find_element_by_xpath('//div[@jscontroller="cSX9Xe"]')
 
-    def get_video(self, video: Video, index):
+    def get_video(self, video: Video, index, attempt=0):
         try:
             ## Generate query for video
             query = video.query
@@ -317,6 +327,7 @@ class VideoCrawler(WebCrawler):
             directors = self.exec_script("js/getIMDbCredits.js", r"Directors?")
             writers = self.exec_script("js/getIMDbCredits.js", r"Writers?")
             stars = self.exec_script("js/getIMDbCredits.js", r"Stars?")
+            languages = self.exec_script("js/getIMDbCredits.js", r"Languages?")
 
             ## Click on poster image
             poster_image_link = self.driver.find_elements_by_css_selector(
@@ -357,7 +368,7 @@ class VideoCrawler(WebCrawler):
                     )
                     poster_image = feature_image"""
 
-            return VideoInfo(
+            video_info = VideoInfo(
                 **{
                     "description": description,
                     "imdb_title": imdb_title,
@@ -371,8 +382,12 @@ class VideoCrawler(WebCrawler):
                     "release_info": release_info,
                     "image": img_loc,
                     "imdb_url": imdb_url,
+                    "languages": languages,
                 }
             )
+            if not video_info.is_populated() and attempt < 5:
+                return self.get_video(video, index, attempt + 1)
+            return video_info
         finally:
             self.rotate_proxy()
 

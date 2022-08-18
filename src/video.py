@@ -59,6 +59,7 @@ class VideoInfo:
         self.image: str = kwargs["image"] if "image" in kwargs else None
         self.imdb_url = kwargs["imdb_url"] if "imdb_url" in kwargs else None
         self.sku = kwargs["sku"] if "sku" in kwargs else None
+        self.languages = kwargs["languages"] if "languages" in kwargs else None
 
     """
     Check if video info is all null or is populated
