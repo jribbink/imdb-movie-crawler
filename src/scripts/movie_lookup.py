@@ -43,19 +43,18 @@ def movie_lookup():
     print("{} missing videos".format(len(threadpool.missing_videos)))
     print("-------------------------")
 
-    os.execv(
-        sys.executable,
-        [
+    if remaining_range:
+        os.execv(
             sys.executable,
-            sys.argv[0],
-            "1",
-            output_file,
-            "{}-{}".format(remaining_range.start, remaining_range.stop),
-            str(num_threads),
-        ],
-    )
-
-    exit()
+            [
+                sys.executable,
+                sys.argv[0],
+                "1",
+                output_file,
+                "{}-{}".format(remaining_range.start, remaining_range.stop),
+                str(num_threads),
+            ],
+        )
 
 
 """

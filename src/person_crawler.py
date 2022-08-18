@@ -118,7 +118,7 @@ class PersonCrawler(WebCrawler):
                 image.get_attribute("src")
                 != "https://m.media-amazon.com/images/S/sash/9FayPGLPcrscMjU.png"
             ):
-                self.save_image(image, "images/{}.png".format(person.name))
+                self.save_image(image, "images/{}.jpg".format(person.name))
         finally:
             self.rotate_proxy()
 

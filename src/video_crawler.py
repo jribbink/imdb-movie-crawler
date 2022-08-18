@@ -1,3 +1,4 @@
+import re
 import threading
 from typing import List
 from crawler import ProxyManager, WebCrawler
@@ -59,7 +60,10 @@ class VideoCrawlerThread(threading.Thread):
         info = None
         for video in self.parent.videos:
             ## Check if videos have same base query and video has info
-            if video.query.title.strip() == query_video.query.title.strip():
+            if (
+                video is not query_video
+                and video.query.title.strip() == query_video.query.title.strip()
+            ):
                 if hasattr(video, "info"):
                     info = video.info
                     break
@@ -76,7 +80,18 @@ class VideoCrawlerThread(threading.Thread):
                 break
 
             if hasattr(self.parent.videos[i], "info"):
-                continue
+                if not self.parent.videos[i].info.imdb_url:
+                    continue
+                if not re.match(
+                    r"^(https:\/\/www\.imdb\.com\/title\/[^\/]+\/)$",
+                    self.parent.videos[i].info.imdb_url or "",
+                ):
+                    self.parent.videos[i].info.imdb_url = re.match(
+                        r"(https:\/\/www\.imdb\.com\/title\/[^\/]+\/)",
+                        self.parent.videos[i].info.imdb_url,
+                    ).group(0)
+                else:
+                    continue
 
             try:
                 video = self.parent.videos[i]
@@ -185,19 +200,29 @@ class VideoCrawler(WebCrawler):
 
                     self.wait_for_document()
 
-            search_video()
+            if (
+                not hasattr(video, "info")
+                or not hasattr(video.info, "imdb_url")
+                or not video.info.imdb_url
+            ):
+                search_video()
 
             ## Click on imdb link on knowledge panel
             imdb_url = None
+            tried_all_queries = False
 
             def click_imdb_link():
                 def find_imdb_link():
+                    nonlocal tried_all_queries
                     try:
-                        return self.exec_script(
-                            "js/findLink.js",
-                            r"https://www.imdb.com/title/.+/",
-                            self.knowledge_panel,
-                        )
+                        if not tried_all_queries:
+                            return self.exec_script(
+                                "js/findLink.js",
+                                r"https://www.imdb.com/title/.+/",
+                                self.knowledge_panel,
+                            )
+                        else:
+                            return self.exec_script("js/getFirstIMDbLink.js")
                     except NoSuchElementException:
                         return None
 
@@ -209,8 +234,19 @@ class VideoCrawler(WebCrawler):
                         if query.query is not None:
                             search_video()
                         else:
-                            self.driver.save_screenshot("ERROR_" + query.title + ".png")
-                            raise VideoNotFoundException()
+                            nonlocal tried_all_queries
+                            if not tried_all_queries:
+                                tried_all_queries = True
+                                print(
+                                    "All knowledge graph query attempts failed... Trying search results instead."
+                                )
+                                query.reset(-1)
+                                return attempt_next_query()
+                            else:
+                                self.driver.save_screenshot(
+                                    "ERROR_" + query.title + ".png"
+                                )
+                                raise VideoNotFoundException()
 
                     # Check if this is a series if imdb link is not found
                     movie_links = self.driver.find_elements_by_css_selector(
@@ -237,18 +273,43 @@ class VideoCrawler(WebCrawler):
                 self.click_element(imdb_link)
                 self.wait_for_document()
 
-            click_imdb_link()
+            if (
+                not hasattr(video, "info")
+                or not hasattr(video.info, "imdb_url")
+                or not video.info.imdb_url
+            ):
+                click_imdb_link()
+            else:
+                imdb_url = video.info.imdb_url
+                self.driver.get(video.info.imdb_url)
+                self.wait_for_document()
 
             ## Save imdb info
-            description = self.driver.find_element_by_class_name(
-                "GenresAndPlot__TextContainerBreakpointXL-cum89p-2"
-            ).get_attribute("textContent")
-            imdb_title = self.driver.find_element_by_class_name(
-                "TitleHeader__TitleText-sc-1wu6n3d-0"
-            ).get_attribute("textContent")
-            rating = self.driver.find_element_by_class_name(
-                "AggregateRatingButton__RatingScore-sc-1ll29m0-1"
-            ).get_attribute("textContent")
+            description_element = self.driver.find_elements_by_css_selector(
+                "[data-testid='plot-xl']"
+            )
+            imdb_title_element = self.driver.find_elements_by_css_selector(
+                "[data-testid='hero-title-block__title']"
+            )
+            rating_element = self.driver.find_elements_by_css_selector(
+                "[data-testid='hero-rating-bar__aggregate-rating'] [data-testid='hero-rating-bar__aggregate-rating__score'] .jGRxWM"
+            )
+
+            description = (
+                description_element[0].get_attribute("textContent")
+                if len(description_element) > 0
+                else None
+            )
+            imdb_title = (
+                imdb_title_element[0].get_attribute("textContent")
+                if len(imdb_title_element) > 0
+                else None
+            )
+            rating = (
+                rating_element[0].get_attribute("textContent")
+                if len(rating_element) > 0
+                else None
+            )
             film_length = self.exec_script("js/getFilmLength.js")
             release_info = self.exec_script("js/getYears.js")
             parental_rating = self.exec_script("js/getParentalRating.js")
@@ -258,38 +319,43 @@ class VideoCrawler(WebCrawler):
             stars = self.exec_script("js/getIMDbCredits.js", r"Stars?")
 
             ## Click on poster image
-            poster_image_link = self.driver.find_element_by_css_selector(
-                ".Poster__CelPoster-sc-6zpm25-0 .ipc-lockup-overlay"
+            poster_image_link = self.driver.find_elements_by_css_selector(
+                "[data-testid='hero-media__poster'] a"
             )
-            self.click_element(poster_image_link)
-            self.wait_for_document()
 
-            ## Save poster image
-            imdb_poster_query = self.driver.find_elements_by_class_name(
-                "MediaViewerImagestyles__PortraitImage-sc-1qk433p-0"
-            )
-            poster_image = None
-            if len(imdb_poster_query) > 0:
-                poster_image = imdb_poster_query[0]
-            else:
-                ## Backtrack to knowledge panel
-                self.driver.get(search_location)
-                self.wait_for_document()
-                # Get google image link
-                image_link = self.driver.find_element_by_css_selector(".kAOS0")
-                self.click_element(image_link)
+            img_loc = None
+
+            if len(poster_image_link) > 0:
+                self.click_element(poster_image_link[0])
                 self.wait_for_document()
 
-                # Get google image current featured image
-                feature_image = self.driver.find_element_by_css_selector(
-                    '[jsname="CGzTgf"] [jsname="HiaYvf"]'
+                ## Save poster image
+                imdb_poster_query = self.driver.find_elements_by_css_selector(
+                    ".media-viewer > .sc-7c0a9e7c-2.bkptFa img:not(.peek)"
                 )
-                poster_image = feature_image
 
-            img_loc = "images/{:05}_{}.png".format(
-                index, query.title.replace("\\", "").replace("/", "")
-            )
-            self.save_image(poster_image, img_loc)
+                poster_image = None
+
+                if len(imdb_poster_query) > 0:
+                    poster_image = imdb_poster_query[0]
+                    img_loc = "images/{:05}_{}.jpg".format(
+                        index, query.title.replace("\\", "").replace("/", "")
+                    )
+                    self.save_image(poster_image, img_loc)
+                else:
+                    """## Backtrack to knowledge panel
+                    self.driver.get(search_location)
+                    self.wait_for_document()
+                    # Get google image link
+                    image_link = self.driver.find_element_by_css_selector(".kAOS0")
+                    self.click_element(image_link)
+                    self.wait_for_document()
+
+                    # Get google image current featured image
+                    feature_image = self.driver.find_element_by_css_selector(
+                        '[jsname="CGzTgf"] [jsname="HiaYvf"]'
+                    )
+                    poster_image = feature_image"""
 
             return VideoInfo(
                 **{
