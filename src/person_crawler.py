@@ -116,13 +116,13 @@ class PersonCrawler(WebCrawler):
             )
             self.driver.get(url)
             self.wait_for_document()
-            link = self.driver.find_element_by_xpath(
-                '//*[@id="main"]/div/div[3]/div/div[1]/a/img'
+            link = self.driver.find_element(
+                By.XPATH, '//*[@id="main"]/div/div[3]/div/div[1]/a/img'
             )
             self.click_element(link)
             self.wait_for_document()
 
-            image = self.driver.find_element_by_xpath('//*[@id="name-poster"]')
+            image = self.driver.find_element(By.XPATH, '//*[@id="name-poster"]')
             if (
                 image.get_attribute("src")
                 != "https://m.media-amazon.com/images/S/sash/9FayPGLPcrscMjU.png"

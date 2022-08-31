@@ -83,6 +83,7 @@ class WebCrawler:
             seleniumwire_options=seleniumwire_options,
             service_args=["--verbose", "--log-path=/home/jordan/log.log"],
         )
+        sleep(0.75)
         self.wait_for_document()
 
     def __del__(self):

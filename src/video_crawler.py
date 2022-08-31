@@ -8,6 +8,7 @@ from video import Video, QueryInfo, VideoInfo, VideoNotFoundException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from video import Video
+from selenium.webdriver.common.by import By
 
 
 class VideoCrawlerThreadpool:
@@ -119,7 +120,7 @@ class VideoCrawlerThread(threading.Thread):
             # except VideoNotFoundException as ex:
         except Exception as ex:
             if "net::ERR_TUNNEL_CONNECTION_FAILED" in str(ex):
-                sleep(0.25)
+                sleep(1)
                 return self.process_video(i)
 
             if (
@@ -127,7 +128,7 @@ class VideoCrawlerThread(threading.Thread):
                 in str(ex)
             ):
                 print(self.crawler.proxy_manager.proxy)
-                if attempt < 6:
+                if attempt < 5:
                     return self.process_video(i, attempt + 1)
             print(ex)
             print("Failed {} (index: {})".format(self.parent.videos[i].title, i))
@@ -151,7 +152,7 @@ class VideoCrawler(WebCrawler):
 
     @property
     def knowledge_panel(self):
-        return self.driver.find_element_by_xpath('//div[@jscontroller="cSX9Xe"]')
+        return self.driver.find_element(By.XPATH, '//div[@jscontroller="cSX9Xe"]')
 
     def get_video(self, video: Video, index, attempt=0):
         try:
@@ -166,8 +167,9 @@ class VideoCrawler(WebCrawler):
                 self.wait_for_document()
 
                 ## Accept cookies
-                agree_element = self.driver.find_elements_by_xpath(
-                    '//div[contains(string(), "I agree") and contains(@class, "QS5gu")]'
+                agree_element = self.driver.find_elements(
+                    By.XPATH,
+                    '//div[contains(string(), "I agree") and contains(@class, "QS5gu")]',
                 )
                 if (
                     self.exec_script(
@@ -179,7 +181,7 @@ class VideoCrawler(WebCrawler):
                     self.click_element(agree_element[0])
 
                 self.driver.save_screenshot("vid.png")
-                search_bar = self.driver.find_element_by_name("q")
+                search_bar = self.driver.find_element(By.NAME, "q")
                 search_bar.send_keys(query.query)
                 search_bar.submit()
                 self.wait_for_document()
@@ -189,14 +191,16 @@ class VideoCrawler(WebCrawler):
                 if search_location.startswith("https://www.google.com/sorry"):
                     WebDriverWait(self.driver, 10).until(
                         lambda driver: len(
-                            self.driver.find_elements_by_class_name("captcha-solver")
+                            self.driver.find_elements(By.CLASS_NAME, "captcha-solver")
                         )
                         > 0
                     )
 
                     # Try captcha 5 times
                     for i in range(0, 5):
-                        self.driver.find_element_by_class_name("captcha-solver").click()
+                        self.driver.find_element(
+                            By.CLASS_NAME, "captcha-solver"
+                        ).click()
                         WebDriverWait(self.driver, 200).until(
                             lambda driver: driver.current_url != search_location
                             or self.exec_script("js/checkCaptchaError.js")
@@ -259,8 +263,9 @@ class VideoCrawler(WebCrawler):
                                 raise VideoNotFoundException()
 
                     # Check if this is a series if imdb link is not found
-                    movie_links = self.driver.find_elements_by_css_selector(
-                        'wp-grid-view [data-attrid="kc:/film/film_series:films"]'
+                    movie_links = self.driver.find_elements(
+                        By.CSS_SELECTOR,
+                        'wp-grid-view [data-attrid="kc:/film/film_series:films"]',
                     )
                     if len(movie_links) > 0:
                         ## If film series and no year is given, use first film
@@ -295,14 +300,15 @@ class VideoCrawler(WebCrawler):
                 self.wait_for_document()
 
             ## Save imdb info
-            description_element = self.driver.find_elements_by_css_selector(
-                "[data-testid='plot-xl']"
+            description_element = self.driver.find_elements(
+                By.CSS_SELECTOR, "[data-testid='plot-xl']"
             )
-            imdb_title_element = self.driver.find_elements_by_css_selector(
-                "[data-testid='hero-title-block__title']"
+            imdb_title_element = self.driver.find_elements(
+                By.CSS_SELECTOR, "[data-testid='hero-title-block__title']"
             )
-            rating_element = self.driver.find_elements_by_css_selector(
-                "[data-testid='hero-rating-bar__aggregate-rating'] [data-testid='hero-rating-bar__aggregate-rating__score'] .jGRxWM"
+            rating_element = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                "[data-testid='hero-rating-bar__aggregate-rating'] [data-testid='hero-rating-bar__aggregate-rating__score'] .jGRxWM",
             )
 
             description = (
@@ -330,8 +336,8 @@ class VideoCrawler(WebCrawler):
             languages = self.exec_script("js/getIMDbCredits.js", r"Languages?")
 
             ## Click on poster image
-            poster_image_link = self.driver.find_elements_by_css_selector(
-                "[data-testid='hero-media__poster'] a"
+            poster_image_link = self.driver.find_elements(
+                By.CSS_SELECTOR, "[data-testid='hero-media__poster'] a"
             )
 
             img_loc = None
@@ -341,8 +347,9 @@ class VideoCrawler(WebCrawler):
                 self.wait_for_document()
 
                 ## Save poster image
-                imdb_poster_query = self.driver.find_elements_by_css_selector(
-                    ".media-viewer > .sc-7c0a9e7c-2.bkptFa img:not(.peek)"
+                imdb_poster_query = self.driver.find_elements(
+                    By.CSS_SELECTOR,
+                    ".media-viewer > .sc-7c0a9e7c-2.bkptFa img:not(.peek)",
                 )
 
                 poster_image = None
